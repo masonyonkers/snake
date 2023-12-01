@@ -1,7 +1,7 @@
 CC=gcc
 
 snake: snake.o
-	$(CC) -o snake snake.o -lncurses
+	$(CC) -o snake snake.o -lncurses -pthread
 
 .PHONY: clean
 clean:

@@ -1,36 +1,52 @@
 #include<ncurses.h>
 #include<stdlib.h>
+#include<unistd.h>
+#include<pthread.h>
 
-void snake();
-
-int main(void)
-{
-	//freopen("/dev/tty", "rw", stdin);
-	initscr();
-
-	addstr("Use WASD to move.\n");
-	refresh();
-
-	snake();
-
-	refresh();
-
-	getch();
-
-	endwin();
-
-	return EXIT_SUCCESS;
-}
+void* snake(void*);
 
 typedef struct {
 	int row, col;
 } point_t;
 
-void snake()
+pthread_mutex_t lock;
+
+int main(void)
 {
+	char ch = 0;
+	initscr();
+
+	addstr("Use WASD to move.\n");
+	refresh();
+
+	pthread_mutex_init(&lock, NULL);
+
+	pthread_t threadID;
+	pthread_create(&threadID, NULL, snake, &ch);
+
+	char temp;
+	while(true) {
+		temp = getch();
+		pthread_mutex_lock(&lock);
+		ch = temp;
+		pthread_mutex_unlock(&lock);
+	}
+
+	pthread_join(threadID, NULL);
+
+	refresh();
+	
+	endwin();
+
+	return EXIT_SUCCESS;
+}
+
+void* snake(void* args)
+{
+	(void) args;
+	volatile char* ch = args;
 	int row;
 	int col;
-	char ch;
 	point_t snake[30];
 	int tail = 0;
 	int done = 0;
@@ -49,26 +65,46 @@ void snake()
 	
 	while(!done)
 	{
-		ch = getch();						// get user input as a char	
-		mvaddch(snake[tail].row, snake[tail].col, ' ');
+		usleep(100000);
+		pthread_mutex_lock(&lock);
+		char input = *ch;
+		pthread_mutex_unlock(&lock);
 
-		switch(ch)
+		mvaddch(snake[tail].row, snake[tail].col, ' ');
+		
+		switch(input)
 		{
-			case 'w':						// if input is 'w'
-				mvaddch(--row,col,'.');		// move the cursor then add '.'
-				refresh();					// refresh the scre
+			case 'w':
+				if (mvinch(row-1,col) == '.') {
+					done = 1;
+				} else {
+					mvaddch(--row,col,'.');
+					refresh();
+				}
 				break;
 			case 's':
-				mvaddch(++row,col,'.');
-				refresh();
+				if (mvinch(row+1,col) == '.') {
+					done = 1;
+				} else {
+					mvaddch(++row,col,'.');
+					refresh();
+				}
 				break;
 			case 'a':
-				mvaddch(row,--col,'.');
-				refresh();
+				if (mvinch(row,col-1) == '.') {
+					done = 1;
+				} else {
+					mvaddch(row,--col,'.');
+					refresh();
+				}
 				break;
 			case 'd':
-				mvaddch(row,++col,'.');
-				refresh();
+				if (mvinch(row,col+1) == '.') {
+					done = 1;
+				} else {
+					mvaddch(row,++col,'.');
+					refresh();
+				}
 				break;
 			case 'q':
 				done = 1;
@@ -84,5 +120,4 @@ void snake()
 
 	curs_set(1);							// turn on cursor display
 
-	// addch('\n');
 }
