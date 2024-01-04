@@ -5,19 +5,25 @@
 #include<string.h>
 #include<time.h>
 
+typedef struct snake_segment
+{
+    int row;
+    int col;
+    struct snake_segment *next;
+}	snake_segment;
+
 void* snake(void*);
 void* poll_input(void* args);
 void* random_x(void* args);
 
-typedef struct {
-	int row, col;
-} point_t;
-
-point_t *grow(point_t old [], int size);
+snake_segment* snake_create(int, int);
+void snake_add(snake_segment **, int, int);
+void snake_free(snake_segment *);
 
 pthread_mutex_t lock;
 
-int main(void) {
+int main(void)
+{
 	char ch = 0;
 	initscr();
 
@@ -46,7 +52,8 @@ int main(void) {
 	return EXIT_SUCCESS;
 }
 
-void* random_x(void* args) {
+void* random_x(void* args)
+{
 	volatile char* ch = args;
 	srand(time(NULL));
 
@@ -55,13 +62,14 @@ void* random_x(void* args) {
 
 	while (*ch!='q') {
 		usleep(1000000);
-		row = rand() % 100 + 1;
-		col = rand() % 100 + 1;
+		row = rand() % 50 + 1;
+		col = rand() % 50 + 1;
 		mvaddch(row,col,'x');
 	}
 }
 
-void* poll_input(void* args) {
+void* poll_input(void* args)
+{
 	volatile char* ch = args;
 
 	char temp;
@@ -74,127 +82,159 @@ void* poll_input(void* args) {
 	
 }
 
-void* snake(void* args) {
+void* snake(void* args)
+{
 	(void) args;
 	volatile char* ch = args;
-	int row;
-	int col;
-	int size = 1;
-	point_t snake[size];
-	int tail = 0;
+	int initial_size = 2;
+	int row = 5;
+	int col = 5;
+	snake_segment *head = NULL;
 	int done = 0;
-
-	for (int i = 0; i < size; i++) {
-		snake[i].row = 1;
-		snake[i].col = i;
-		mvaddch(1, i, '.');
-	}
-
-	row = snake[size-1].row;
-	col = snake[size-1].col;
 
 	noecho();
 	curs_set(0);
-	
-	while(!done) {
 
+	// for (int i = 0; i < initial_size; i++) {
+		// snake_add(&head, row, col - i);
+	// }
+
+	while (!done) {
 		usleep(100000);
 
 		pthread_mutex_lock(&lock);
 		char input = *ch;
 		pthread_mutex_unlock(&lock);
 
-		mvaddch(snake[tail].row, snake[tail].col, ' ');
-		
 		switch(input) {
 			case 'w':
-				if (mvinch(row-1,col) == '.') {
+				row--;
+				if (mvinch(row - 1, col) == '.') {
 					done = 1;
-					refresh();
-					mvprintw(row/2,(col-strlen("Game Over :("))/2,"%s","Game Over :(");
-					refresh();
-				} else if (mvinch(row-1,col) == 'x') {
-					mvaddch(--row,col,'.');
-					*snake = *grow(snake, ++size);
-					refresh();
-				} else {
-					mvaddch(--row,col,'.');
-					refresh();
-				}
-				break;
-			case 's':
-				if (mvinch(row+1,col) == '.') {
-					done = 1;
-					refresh();
-					mvprintw(row/2,(col-strlen("Game Over :("))/2,"%s","Game Over :(");
-					refresh();
-				} else if (mvinch(row+1,col) == 'x') {
-					mvaddch(++row,col,'.');
-					*snake = *grow(snake, ++size);
-					refresh();
-				} else {
-					mvaddch(++row,col,'.');
-					refresh();
+					continue;
+				} else if (mvinch(row - 1, col) != 'x') {
+					snake_segment *tail = head;
+
+					while (tail->next->next != NULL)
+						tail = tail-> next;
+
+					mvaddch(tail->next->row, tail->next->col, ' ');
+					free(tail->next);
+					tail->next = NULL;
 				}
 				break;
 			case 'a':
-				if (mvinch(row,col-1) == '.') {
+				col--;
+				if (mvinch(row, col - 1) == '.') {
 					done = 1;
-					refresh();
-					mvprintw(row/2,(col-strlen("Game Over :("))/2,"%s","Game Over :(");
-					refresh();
-				} else if (mvinch(row,col-1) == 'x') {
-					mvaddch(row,--col,'.');
-					*snake = *grow(snake, ++size);
-					refresh();
-				} else {
-					mvaddch(row,--col,'.');
-					refresh();
+					continue;
+				} else if (mvinch(row, col - 1) != 'x') {
+					snake_segment *tail = head;
+
+					while (tail->next->next != NULL)
+						tail = tail-> next;
+
+					mvaddch(tail->next->row, tail->next->col, ' ');
+					free(tail->next);
+					tail->next = NULL;
+				}
+				break;
+			case 's':
+				row++;
+				if (mvinch(row + 1, col) == '.') {
+					done = 1;
+					continue;
+				} else if (mvinch(row + 1, col) != 'x') {
+					snake_segment *tail = head;
+
+					while (tail->next->next != NULL)
+						tail = tail-> next;
+
+					mvaddch(tail->next->row, tail->next->col, ' ');
+					free(tail->next);
+					tail->next = NULL;
 				}
 				break;
 			case 'd':
-				if (mvinch(row,col+1) == '.') {
+				col++;
+				if (mvinch(row, col + 1) == '.') {
 					done = 1;
-					refresh();
-					mvprintw(row/2,(col-strlen("Game Over :("))/2,"%s","Game Over :(");
-					refresh();
-				} else if (mvinch(row,col+1) == 'x') {
-					mvaddch(row,++col,'.');
-					*snake = *grow(snake, ++size);
-					refresh();
-				} else {
-					mvaddch(row,++col,'.');
-					refresh();
+					continue;
+				} else if (mvinch(row, col + 1) != 'x') {
+					snake_segment *tail = head;
+
+					while (tail->next->next != NULL)
+						tail = tail-> next;
+
+					mvaddch(tail->next->row, tail->next->col, ' ');
+					free(tail->next);
+					tail->next = NULL;
 				}
 				break;
 			case 'q':
 				done = 1;
-				break;
+				continue;
 			default:
 				break;
 		}
 
-		if (!done) {
-		snake[tail].row = row;
-		snake[tail].col = col;
-		tail = (tail + 1) % size;
+		snake_add(&head, row, col);
+
+		// if (mvinch(row, col) != 'x') {
+			// snake_segment *tail = head;
+// 
+			// while (tail->next->next != NULL)
+				// tail = tail-> next;
+// 
+			// mvaddch(tail->next->row, tail->next->col, ' ');
+			// free(tail->next);
+			// tail->next = NULL;
+		// }
+
 		refresh();
-		}
 	}
 
+	snake_free(head);
 	return args;
-
 }
 
-point_t *grow(point_t old [], int size)
+snake_segment* snake_create(int row, int col)
 {
-	point_t new[size];
-	point_t *ptr = new;
+	snake_segment *new = malloc(sizeof(snake_segment));
 
-	for (int i = 0; i < size; i++)
-	{
-		new[i] = old[i];
+	// if (new == NULL)
+		// return NULL;
+
+	new->row  = row;
+	new->col  = col;
+	new->next = NULL;
+
+	return new;
+}
+
+void snake_add(snake_segment **snake, int row, int col)
+{
+	snake_segment *new = snake_create(row, col);
+
+	if (new == NULL)
+		return;
+
+	mvaddch(row, col, '.');
+
+
+	if (*snake == NULL) {
+		*snake = new;
+	} else {
+		new->next = *snake;
+		*snake = new;
 	}
+}
 
-	return ptr;
+void snake_free(snake_segment *snake)
+{
+	while (snake != NULL) {
+		snake_segment *temp = snake;
+		snake = snake->next;
+		free(temp);
+	}
 }
